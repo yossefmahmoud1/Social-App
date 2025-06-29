@@ -1,0 +1,140 @@
+-- Create posts table first (since other tables reference it)
+CREATE TABLE IF NOT EXISTS posts (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  img_url TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  like_count INTEGER DEFAULT 0,
+  comment_count INTEGER DEFAULT 0,
+  user_id UUID REFERENCES auth.users(id),
+  author VARCHAR(255)
+);
+
+-- Create communities table
+CREATE TABLE IF NOT EXISTS communities (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  member_count INTEGER DEFAULT 0,
+  image_url TEXT
+);
+
+-- Create comments table (now Posts table exists)
+CREATE TABLE IF NOT EXISTS comments (
+  id SERIAL PRIMARY KEY,
+  content TEXT NOT NULL,
+  post_id INTEGER REFERENCES "Posts"(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  author VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  parent_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+  like_count INTEGER DEFAULT 0
+);
+
+-- Create votes table for likes/dislikes (now Posts table exists)
+CREATE TABLE IF NOT EXISTS votes (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER REFERENCES "Posts"(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  vote_value INTEGER CHECK (vote_value IN (-1, 0, 1)), -- -1: dislike, 0: neutral, 1: like
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(post_id, user_id)
+);
+
+-- Create community_members table for tracking community membership
+CREATE TABLE IF NOT EXISTS community_members (
+  id SERIAL PRIMARY KEY,
+  community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(community_id, user_id)
+);
+
+-- Add RLS (Row Level Security) policies
+ALTER TABLE "Posts" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE communities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
+
+-- Posts policies
+CREATE POLICY "Posts are viewable by everyone" ON "Posts"
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can create posts" ON "Posts"
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own posts" ON "Posts"
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own posts" ON "Posts"
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Communities policies
+CREATE POLICY "Communities are viewable by everyone" ON communities
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can create communities" ON communities
+  FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+CREATE POLICY "Users can update their own communities" ON communities
+  FOR UPDATE USING (auth.uid() = created_by);
+
+-- Comments policies
+CREATE POLICY "Comments are viewable by everyone" ON comments
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can create comments" ON comments
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own comments" ON comments
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own comments" ON comments
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Votes policies
+CREATE POLICY "Votes are viewable by everyone" ON votes
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can vote" ON votes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own votes" ON votes
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Community members policies
+CREATE POLICY "Community members are viewable by everyone" ON community_members
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can join communities" ON community_members
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can leave communities" ON community_members
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON "Posts"(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_votes_post_id ON votes(post_id);
+CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id);
+CREATE INDEX IF NOT EXISTS idx_community_members_community_id ON community_members(community_id);
+CREATE INDEX IF NOT EXISTS idx_community_members_user_id ON community_members(user_id);
+
+-- Insert some sample data (optional)
+INSERT INTO communities (name, description, created_by) VALUES 
+('General Discussion', 'A place for general discussions and topics', NULL),
+('Tech Talk', 'Share and discuss technology topics', NULL),
+('Creative Corner', 'Showcase your creative work', NULL)
+ON CONFLICT DO NOTHING;
+
+-- Add missing columns to Posts table if they don't exist
+ALTER TABLE "Posts" ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0;
+ALTER TABLE "Posts" ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0;
+ALTER TABLE "Posts" ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE "Posts" ADD COLUMN IF NOT EXISTS author VARCHAR(255); 
