@@ -170,7 +170,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 via-blue-900 to-black p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-purple-900 to-indigo-900 p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8 animate-fade-in">

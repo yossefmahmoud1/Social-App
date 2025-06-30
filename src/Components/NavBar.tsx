@@ -24,11 +24,16 @@ const NavBar = () => {
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-40 bg-[rgba(10,10,10,0.8)] backdrop-blur-lg border-b border-white/10 shadow-lg">
+    <nav className="fixed top-0 w-full z-40 bg-gradient-to-r from-[#1f1c2c] via-[#2c2b3c] to-[#1f1c2c] bg-opacity-90 backdrop-blur-md border-b border-purple-600/30 shadow-md shadow-purple-800/20">
       <div className="mx-auto px-6 md:px-12">
         <div className="flex justify-between items-center p-4">
           {/* Logo */}
-          <Link to="/">
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src="/Logo.png"
+              alt="Logo"
+              className="w-14 h-14 rounded-full shadow"
+            />
             <h1 className="font-mono text-xl font-bold text-white">
               Social <span className="text-purple-500">app</span>
             </h1>
